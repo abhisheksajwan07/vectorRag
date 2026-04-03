@@ -22,6 +22,8 @@ export async function retrievalRelevantChunks(
     namespace,
   });
 
+  // console.log(results)
+
   if (!results?.length) {
     return {
       docs: [],

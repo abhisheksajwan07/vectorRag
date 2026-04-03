@@ -6,12 +6,15 @@ const EnvSchema = z.object({
     .string()
     .default("5000")
     .transform((val) => Number(val)),
-  MODEL_PROVIDER: z.enum(["openai", "groq", "gemini"]),
-  EMBEDDING_PROVIDER: z.enum(["openai", "groq", "gemini"]),
+  MODEL_PROVIDER: z.enum(["openai", "groq","mistral"]),
+  EMBEDDING_PROVIDER: z.enum(["openai", "groq", "gemini","mistral"]),
+  
+
   OPENAI_API_KEY: z.string().min(1, "openai api key is missing"),
+   MISTRAL_API_KEY: z.string().min(1, "mistrai api key is missing"),
   GROQ_API_KEY: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1, "gemini api key is missing"),
-  GEMINI_EMBEDDING_MODEL: z.string(),
+ 
 
   OPENAI_MODEL: z.string(),
   GROQ_MODEL: z.string(),
@@ -23,6 +26,7 @@ const EnvSchema = z.object({
 const parsed = EnvSchema.safeParse(process.env);
 
 if (!parsed.success) {
+  console.log(parsed.error.format())
   console.log("Invalid environment configuration");
   process.exit(1);
 }

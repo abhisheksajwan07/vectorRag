@@ -1,8 +1,8 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatGroq } from "@langchain/groq";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google";
-import { TaskType } from "@google/generative-ai";
+import { ChatMistralAI } from "@langchain/mistralai";
+import { MistralAIEmbeddings } from "@langchain/mistralai";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { env } from "./env";
 
@@ -26,6 +26,14 @@ export function getChatModel(opts: ModelOpts = {}): BaseChatModel {
         model: env.OPENAI_MODEL,
         temperature: temp,
       });
+
+    case "mistral":
+      return new ChatMistralAI({
+        apiKey: env.MISTRAL_API_KEY,
+        model: "codestral-latest",
+        temperature: temp,
+      });
+
     default:
       throw new Error("Invalid MODEL_PROVIDER");
   }
@@ -38,11 +46,10 @@ export function getEmbeddingModel() {
         openAIApiKey: env.OPENAI_API_KEY,
         model: env.OPENAI_EMBEDDING_MODEL,
       });
-    case "gemini":
-      return new GoogleGenerativeAIEmbeddings({
-        apiKey: env.GEMINI_API_KEY,
-        taskType: TaskType.RETRIEVAL_DOCUMENT,
-        modelName: env.GEMINI_EMBEDDING_MODEL,
+
+    case "mistral":
+      return new MistralAIEmbeddings({
+        model: "mistral-embed",
       });
     default:
       throw new Error("Invalid EMBEDDING_PROVIDER");

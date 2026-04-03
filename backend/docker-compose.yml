@@ -1,12 +1,12 @@
-version: "3.8"
+# version: "3.8"
 
-services:
-  mongodb:
-    image: mongo
-    ports:
-      - "27019:27017"
-    volumes:
-      - mongo-data:/data/db
+# services:
+#   mongodb:
+#     image: mongo
+#     ports:
+#       - "27019:27017"
+#     volumes:
+#       - mongo-data:/data/db
 
-volumes:
-  mongo-data:
+# volumes:
+#   mongo-data:
