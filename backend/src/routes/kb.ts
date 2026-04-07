@@ -8,7 +8,7 @@ export const kbRouter = Router();
 const upload = multer({
   dest: "uploads/",
   limits: {
-    fieldSize: 10 * 1021 * 1024,
+    fieldSize: 10 * 1024 * 1024,
   },
 });
 
@@ -46,14 +46,16 @@ kbRouter.post("/upload", upload.single("file"), async (req, res) => {
     }
 
     const summary = await ingestDocument(namespace, chunks);
+   
     return res.status(200).json({
       ok: summary.ok,
+      replaced: summary.replaced,          // true = same file was re-uploaded
       namespace: summary.namespace,
       totalChunks: summary.totalChunks,
       sources: summary.sources,
     });
   } catch (err) {
-    console.log(err)
+    console.error("KB[ROUTER]/upload failed:",err)
     res.status(500).json({
       message: "Something went wrong while uploading the file",
       ok: false,
