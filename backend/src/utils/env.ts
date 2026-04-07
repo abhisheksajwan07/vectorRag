@@ -13,7 +13,7 @@ const EnvSchema = z.object({
   OPENAI_API_KEY: z.string().min(1, "openai api key is missing"),
    MISTRAL_API_KEY: z.string().min(1, "mistrai api key is missing"),
   GROQ_API_KEY: z.string().min(1),
-  GEMINI_API_KEY: z.string().min(1, "gemini api key is missing"),
+  
  
 
   OPENAI_MODEL: z.string(),
@@ -26,6 +26,7 @@ const EnvSchema = z.object({
 const parsed = EnvSchema.safeParse(process.env);
 
 if (!parsed.success) {
+ 
   console.log(parsed.error.format())
   console.log("Invalid environment configuration");
   process.exit(1);
