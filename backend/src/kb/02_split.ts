@@ -12,14 +12,14 @@ const splitter = new RecursiveCharacterTextSplitter({
 export async function splitDocument(docs: Document[]): Promise<Document[]> {
   if (!docs.length) return [];
   const chunks = await splitter.splitDocuments(docs);
-  return chunks.map((chunk, index) => {
+  return chunks.map((chunk) => {
     const base = chunk?.metadata ?? {};
     return new Document({
       pageContent: chunk?.pageContent.trim(),
       metadata: {
         ...base,
         source: base?.source ?? "unknown_source",
-        _chunkIndex: index,
+        // _chunkIndex: index,
       },
     });
   });
