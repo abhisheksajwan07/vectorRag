@@ -49,8 +49,10 @@ export function getEmbeddingModel() {
 
     case "mistral":
       return new MistralAIEmbeddings({
-        model: "mistral-embed",
+        apiKey: env.MISTRAL_API_KEY,
+        modelName: "mistral-embed"
       });
+      
     default:
       throw new Error("Invalid EMBEDDING_PROVIDER");
   }
