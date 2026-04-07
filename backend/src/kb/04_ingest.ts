@@ -1,8 +1,9 @@
 import { Document } from "@langchain/core/documents";
-import { getVectorStore } from "./03_vectorStore";
+import { getVectorStore, getKbCollection } from "./03_vectorStore";
 
 export interface IngestSummary {
   ok: boolean;
+  replaced: boolean; // true if this was an update
   namespace: string;
   totalChunks: number;
   sources: string[];
@@ -19,11 +20,34 @@ export async function ingestDocument(
   if (!chunks.length) {
     return {
       ok: false,
+      replaced: false,
       namespace,
       totalChunks: 0,
       sources: [],
     };
   }
+
+  
+  // If the user uploads the same file again, the old chunks are stale.
+  // We delete them first so we don't accumulate duplicates in the vector store.
+  const collection = await getKbCollection();
+  const sources = Array.from(
+    new Set(
+      chunks.map((c) => (c?.metadata?.source as string) || "unknown_source"),
+    ),
+  );
+
+  
+
+  const deleteResult= await collection.deleteMany({
+    "namespace": namespace,
+    "source": { $in: sources },
+  });
+
+  // console.log("deleted result",deleteResult)
+
+  const replaced = deleteResult.deletedCount > 0
+  // ─────────────
 
   const vectorStore = await getVectorStore();
 
@@ -46,12 +70,9 @@ export async function ingestDocument(
 
   await vectorStore.addDocuments(docsWithMeta);
 
-  const sources = Array.from(
-    new Set(docsWithMeta.map((d) => d.metadata.source as string)),
-  );
-
   return {
     ok: true,
+    replaced,
     namespace,
     totalChunks: docsWithMeta.length,
     sources,

@@ -5,7 +5,7 @@ import { getDb } from "../utils/mongo";
 import { env } from "../utils/env";
 
 const KB_COLLECTION_NAME = "kb_chunks";
-const KB_INDEX_NAME = "kb_vector_index";
+const KB_INDEX_NAME = "vector_index";
 
 let collectionPromise: Promise<MongoCollection> | null = null;
 let vectorStorePromise: Promise<MongoDBAtlasVectorSearch> | null = null;
@@ -26,8 +26,12 @@ export async function getVectorStore(): Promise<MongoDBAtlasVectorSearch> {
       const collection = await getKbCollection();
       const embedding = getEmbeddingModel();
 
-      const testEmbed = await embedding.embedQuery("hello");
-
+      // const testEmbed = await embedding.embedQuery("hello");
+      // if (!testEmbed || testEmbed.length === 0) {
+      //   throw new Error("Embedding model returned empty vector");
+      // }
+      // console.log(`Embedding model ready — dimensions: ${testEmbed.length}`);
+     
       const vectorStore = new MongoDBAtlasVectorSearch(embedding, {
         collection: collection as any,
         indexName: KB_INDEX_NAME,
