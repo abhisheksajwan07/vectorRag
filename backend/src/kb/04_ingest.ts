@@ -51,7 +51,7 @@ export async function ingestDocument(
 
   const vectorStore = await getVectorStore();
 
-  let currentId = 0;
+ 
 
   const docsWithMeta = chunks.map((chunk) => {
     const source = (chunk?.metadata?.source as string) || "unknown_source";
@@ -61,7 +61,7 @@ export async function ingestDocument(
       metadata: {
         namespace,
         source,
-        chunkId: currentId++,
+        chunkIndex:chunk?.metadata?.chunkIndex,
       },
     });
 
