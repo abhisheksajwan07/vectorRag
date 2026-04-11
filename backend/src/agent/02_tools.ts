@@ -17,7 +17,7 @@ export const kbSearchTool = tool(
 
       const preview =
         doc.pageContent.length > 0
-          ? doc.pageContent.slice(0, 400) + "..."
+          ? doc.pageContent.slice(0, 800) + "..."
           : doc.pageContent;
       return {
         source,

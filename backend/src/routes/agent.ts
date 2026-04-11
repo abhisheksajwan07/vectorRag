@@ -2,6 +2,7 @@ import { Router } from "express";
 import { runProductAgent } from "../agent/03_agent";
 import {
   appendToHistory,
+  buildContextualQuery,
   ensureThreadId,
   getHistory,
 } from "../agent/04_memory";
@@ -17,7 +18,7 @@ agentRouter.post("/chat", async (req, res) => {
       threadId?: string;
     };
 
-    // ── VALIDATION ─────────────────────────────────────────────
+    // ----------- VALIDATION ───
     if (!message || !message.trim()) {
       return res.status(400).json({
         ok: false,
@@ -27,10 +28,24 @@ agentRouter.post("/chat", async (req, res) => {
 
     const cleanMessage = message.trim();
     const threadId = await ensureThreadId(incomingThreadId);
+    const history = await getHistory(threadId);
+    console.log("RAW HISTORY FROM DB:", JSON.stringify(history, null, 2));
+    console.log("HISTORY LENGTH:", history.length);
 
-    // ── PRE-RETRIEVAL GATE ─────────────────────────────────────
-    const preCheck = await retrievalRelevantChunks(cleanMessage, "default", 2);
+    const contextualQuery = buildContextualQuery(history, cleanMessage);
 
+    //------ PRE-RETRIEVAL GATE ------
+    const preCheck = await retrievalRelevantChunks(
+      contextualQuery,
+      "default",
+      2,
+    );
+    console.log(
+      "PRECHECK CONFIDENCE:",
+      preCheck.confidence,
+      "for:",
+      cleanMessage,
+    );
     if (preCheck.confidence < BLOCK_THRESHOLD) {
       const now = new Date();
 
@@ -38,12 +53,14 @@ agentRouter.post("/chat", async (req, res) => {
         role: "user" as const,
         content: cleanMessage,
         ts: now,
+        status: "success" as const,
       };
 
       const assistantMsg = {
         role: "assistant" as const,
         content: "I don't know based on the available documentation.",
         ts: now,
+        status: "blocked" as const,
       };
 
       // ✅ atomic write
@@ -60,7 +77,6 @@ agentRouter.post("/chat", async (req, res) => {
     }
 
     // ── NORMAL FLOW ────────────────────────────────────────────
-    const history = await getHistory(threadId);
 
     const userTime = new Date();
 
@@ -68,19 +84,23 @@ agentRouter.post("/chat", async (req, res) => {
       role: "user" as const,
       content: cleanMessage,
       ts: userTime,
+      status: "success" as const,
     };
 
     const messagesForAgent = [...history, userMsg];
 
     let answer: string;
     let citations: any[] = [];
-
+    let llmFailed = false;
+    let usedKb = false;
     try {
       const result = await runProductAgent(messagesForAgent);
       answer = result.answer;
       citations = result.citations;
+      usedKb = result.usedKb;
     } catch (err) {
-      // ❗ LLM failure fallback
+      //  LLM failure fallback
+      llmFailed = true;
       answer = "Something went wrong. Please try again.";
       citations = [];
     }
@@ -91,9 +111,14 @@ agentRouter.post("/chat", async (req, res) => {
       role: "assistant" as const,
       content: answer,
       ts: assistantTime,
+      status: llmFailed
+        ? ("error" as const)
+        : !usedKb
+          ? ("blocked" as const)
+          : ("success" as const),
     };
 
-    // ✅ atomic write (user + assistant together)
+    //  atomic write (user + assistant together)
     await appendToHistory(threadId, userMsg, assistantMsg);
 
     return res.json({
