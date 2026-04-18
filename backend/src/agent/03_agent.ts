@@ -9,7 +9,6 @@ import { getChatModel } from "../utils/llm.factory";
 import { agentTools } from "./02_tools";
 import { AGENT_SYSTEM_PROMPT } from "./01_policy";
 
-
 // ── 1. Schema — single source of truth ──
 const AgentResponseSchema = z.object({
   answer: z.string(),
@@ -42,6 +41,14 @@ export async function runProductAgent(
   console.log(state);
 
   const usedKb = state.messages.some((m) => m instanceof ToolMessage);
+
+  if (!usedKb) {
+    return {
+      answer: "I don't know based on available documentation.",
+      citations: [],
+      usedKb: false,
+    };
+  }
 
   // find last AI message that has actual content and no pending tool calls
   const lastAIMessage = [...state.messages]

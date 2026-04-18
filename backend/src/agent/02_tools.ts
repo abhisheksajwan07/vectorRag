@@ -8,7 +8,8 @@ const DEFAULT_NAMESPACE = "default";
 export const kbSearchTool = tool(
   async ({ question }: { question: string }) => {
     const ns = DEFAULT_NAMESPACE;
-    const { docs, confidence } = await retrievalRelevantChunks(question, ns, 2);
+
+    const { docs, confidence } = await retrievalRelevantChunks(question, ns, 6);
 
     const contexts = docs.map((doc) => {
       const source = (doc?.metadata?.source as string) || "unknown_source";
