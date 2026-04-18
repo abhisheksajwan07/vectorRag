@@ -1,15 +1,17 @@
-import type { Document } from "@langchain/core/documents";
-import { getVectorStore } from "./03_vectorStore";
+import { Document } from "@langchain/core/documents";
+import { getKbCollection, getVectorStore } from "./03_vectorStore";
 
 export interface RetrieverResult {
   docs: Document[];
   confidence: number;
 }
-
+function getParentId(doc:any):string|undefined {
+  return doc.metadata?.parentId || doc.parentId
+}
 export async function retrievalRelevantChunks(
   query: string,
   namespace: string = "default",
-  k: number = 2,
+  k: number = 5,
 ): Promise<RetrieverResult> {
   // console.log("STEP 1: function called");
 
@@ -21,9 +23,13 @@ export async function retrievalRelevantChunks(
   }
   const vectorStore = await getVectorStore();
   // console.log("STEP 2: got vectorStore", vectorStore);
+
   try {
+    /**
+     * search child chunks
+     */
     const results = await vectorStore.similaritySearchWithScore(query, k, {
-      namespace,
+      filter: {  namespace },
     });
 
     // console.log("STEP 3: results", results);
@@ -33,7 +39,30 @@ export async function retrievalRelevantChunks(
       return { docs: [], confidence: 0 };
     }
 
-    const docs = results.map(([doc]) => doc);
+    const parentIds = [
+      ...new Set(
+        results
+          .map(([doc]) => getParentId(doc))
+          .filter((id): id is string => typeof id === "string"),
+      ),
+    ];
+
+    const collection = await getKbCollection();
+
+    const parentDocsRaw = await collection
+      .find({
+        "metadata.parentId": { $in: parentIds },
+        "metadata.level": "parent",
+        "metadata.namespace": namespace,
+      })
+      .toArray();
+
+    const docs: Document[] = parentDocsRaw.map((p) => {
+      return new Document({
+        pageContent: p.pageContent,
+        metadata: p.metadata,
+      });
+    });
     const scores = results.map(([_, score]) => score);
 
     const best = Math.max(...scores);

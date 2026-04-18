@@ -8,10 +8,11 @@ export interface IngestSummary {
   totalChunks: number;
   sources: string[];
 }
+const DEFAULT_NAMESPACE = "default";
 
 export async function ingestDocument(
-  namespace: string,
   chunks: Document[],
+  namespace: string = DEFAULT_NAMESPACE,
 ): Promise<IngestSummary> {
   if (!namespace) {
     throw new Error("namespace is needed");
@@ -27,7 +28,6 @@ export async function ingestDocument(
     };
   }
 
-  
   // If the user uploads the same file again, the old chunks are stale.
   // We delete them first so we don't accumulate duplicates in the vector store.
   const collection = await getKbCollection();
@@ -37,35 +37,30 @@ export async function ingestDocument(
     ),
   );
 
-  
-
-  const deleteResult= await collection.deleteMany({
-    "namespace": namespace,
-    "source": { $in: sources },
+  const deleteResult = await collection.deleteMany({
+    "metadata.namespace": namespace,
+    "metadata.source": { $in: sources },
   });
 
   // console.log("deleted result",deleteResult)
 
-  const replaced = deleteResult.deletedCount > 0
+  const replaced = deleteResult.deletedCount > 0;
   // ─────────────
 
   const vectorStore = await getVectorStore();
 
- 
-
   const docsWithMeta = chunks.map((chunk) => {
-    const source = (chunk?.metadata?.source as string) || "unknown_source";
-
-    const doc = new Document({
+    return new Document({
       pageContent: chunk.pageContent,
       metadata: {
         namespace,
-        source,
-        chunkIndex:chunk?.metadata?.chunkIndex,
+        source: chunk.metadata?.source,
+        fileId: chunk.metadata?.fileId,
+        parentId: chunk.metadata?.parentId,
+        subChunk: chunk.metadata?.subChunk,
+        level: chunk.metadata?.level,
       },
     });
-
-    return doc;
   });
 
   await vectorStore.addDocuments(docsWithMeta);
