@@ -35,7 +35,7 @@ export async function getVectorStore(): Promise<MongoDBAtlasVectorSearch> {
       const vectorStore = new MongoDBAtlasVectorSearch(embedding, {
         collection: collection as any,
         indexName: KB_INDEX_NAME,
-        textKey: "text",
+        textKey: "pageContent",
         embeddingKey: "embedding",
       });
       return vectorStore;

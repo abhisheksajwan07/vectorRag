@@ -1,6 +1,7 @@
 import { Document } from "@langchain/core/documents";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
+import crypto from "crypto";
 
 interface loadFileArgs {
   mimeType: string;
@@ -11,6 +12,26 @@ interface loadFileArgs {
 function getExt(name: string): string {
   const index = name.lastIndexOf(".");
   return index === -1 ? "" : name.slice(index + 1).toLowerCase();
+}
+
+/**
+ * clean text(important for pdf)
+ */
+function cleanText(text: string): string {
+  return text
+    .replace(/\f/g, " ")
+    .replace(/([a-zA-Z]+)-\n([a-zA-z]+)/g, "$1$2") // fix hyphen breaks
+    .replace(/([a-z,])\n([a-z])/g, "$1 $2") // join broken lines
+    .replace(/\n{3,}/g, "\n\n") // keep paragraphs
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
+/**
+ * generate fileId for deduplication
+ */
+function createFileId(text: string): string {
+  return crypto.createHash("sha256").update(text).digest("hex");
 }
 
 /**
@@ -27,42 +48,43 @@ export async function loadFileAsDocument(
 ): Promise<Document[]> {
   const { mimeType, originalName, filePath } = args;
 
-  const extractExtension = getExt(originalName);
+  const ext = getExt(originalName);
 
   const isMarkDown =
-    mimeType === "text/markdown" ||
-    extractExtension === "md" ||
-    extractExtension === "markdown";
+    mimeType === "text/markdown" || ext === "md" || ext === "markdown";
 
-  const isText = mimeType === "text/plain" || extractExtension === "txt";
+  const isText = mimeType === "text/plain" || ext === "txt";
 
-  const isPdf = mimeType === "application/pdf" || extractExtension === "pdf";
-
-  if (isPdf) {
-    const loader = new PDFLoader(filePath);
-    const docs = await loader.load();
-
-    return docs.map((doc) => ({
-      ...doc,
-      metadata: {
-        ...doc.metadata,
-        source: originalName,
-      },
-    }));
+  const isPdf = mimeType === "application/pdf" || ext === "pdf";
+  const fileType = isPdf ? "pdf" : isMarkDown ? "markdown" : "text";
+  let docs: Document[] = [];
+  try {
+    if (isPdf) {
+      const loader = new PDFLoader(filePath);
+      docs = await loader.load();
+    } else if (isText || isMarkDown) {
+      const loader = new TextLoader(filePath);
+      docs = await loader.load();
+    } else {
+      return [];
+    }
+  } catch (err) {
+    throw new Error("failed to load file");
   }
 
-  if (isText || isMarkDown) {
-    const loader = new TextLoader(filePath);
-    const docs = await loader.load();
+  const fullText = docs.map((d) => d.pageContent).join("\n\n");
 
-    return docs.map((doc) => ({
-      ...doc,
+  const cleanedtext = cleanText(fullText);
+  const fileId = createFileId(cleanedtext);
+
+  return [
+    new Document({
+      pageContent: cleanedtext,
       metadata: {
-        ...doc.metadata,
         source: originalName,
+        type: fileType,
+        fileId,
       },
-    }));
-  }
-
-  return [];
+    }),
+  ];
 }
